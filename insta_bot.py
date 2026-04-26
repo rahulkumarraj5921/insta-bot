@@ -13,34 +13,22 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Ninja Bot is live and fixed!"
+    return "Ninja Bot: Debugging JSON structure..."
 
 def run_web():
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    welcome_text = (
-        "🚀 **Insta Ninja Downloader (Final Version)** 🚀\n\n"
-        "बस रील का लिंक भेजें और जादू देखें! ⚡\n\n"
-        "👇 **Developer को सपोर्ट करने के लिए फॉलो करें:**"
-    )
-    keyboard = [[InlineKeyboardButton("💖 Follow Rahul Kumar Raj 💖", url=INSTA_LINK)]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(welcome_text, parse_mode='Markdown', reply_markup=reply_markup)
+    welcome_text = "🚀 **Debug Mode ON** 🚀\nलिंक भेजें और JSON चेक करें।"
+    await update.message.reply_text(welcome_text)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     url = update.message.text
-
-    if "instagram.com" not in url:
-        await update.message.reply_text("⚠️ दोस्त, कृपया सही Instagram लिंक भेजें!")
-        return
-
-    status_msg = await update.message.reply_text("⚙️ **वीडियो डाउनलोड किया जा रहा है...**")
+    status_msg = await update.message.reply_text("⚙️ **API Response स्कैन किया जा रहा है...**")
 
     try:
-        # instagram120 ka sahi endpoint for download
         api_url = "https://instagram120.p.rapidapi.com/api/instagram/links" 
         payload = {"url": url}
         headers = {
@@ -52,41 +40,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = requests.post(api_url, json=payload, headers=headers)
         data = response.json()
 
-        # Is API ka response aksar list me aata hai
-        video_url = None
-        if isinstance(data, list) and len(data) > 0:
-            video_url = data[0].get("url") or data[0].get("video_url")
-        elif isinstance(data, dict):
-            video_url = data.get("url") or data.get("video_url")
-
-        if not video_url:
-            await status_msg.edit_text("❌ वीडियो लिंक नहीं मिला। कृपया सुनिश्चित करें कि रील पब्लिक है।")
-            return
-
-        file_path = f"reel_{chat_id}.mp4"
-        video_data = requests.get(video_url).content
-        with open(file_path, 'wb') as f:
-            f.write(video_data)
-
-        keyboard = [[InlineKeyboardButton("🔥 Follow Rahul on Instagram 🔥", url=INSTA_LINK)]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        with open(file_path, 'rb') as video_file:
-            await context.bot.send_video(
-                chat_id=chat_id,
-                video=video_file,
-                caption="🎬 **Reel Downloaded!** ✅",
-                reply_markup=reply_markup
-            )
-        await status_msg.delete()
+        # 🛠️ Yahan hum pura JSON dikhayenge taaki hume sahi field mil sake
+        import json
+        clean_json = json.dumps(data, indent=2)
+        debug_text = f"✅ **API ne ye data bheja hai:**\n\n`{clean_json[:3500]}`"
+        
+        await status_msg.edit_text(debug_text, parse_mode='Markdown')
 
     except Exception as e:
-        await status_msg.edit_text(f"❌ **Error:** सब्सक्राइब चेक करें या लिंक फिर से भेजें।")
-        print(f"Detailed Error: {e}")
-
-    finally:
-        if 'file_path' in locals() and os.path.exists(file_path):
-            os.remove(file_path)
+        await status_msg.edit_text(f"❌ **Error:** `{str(e)}`")
 
 def main():
     threading.Thread(target=run_web, daemon=True).start()
