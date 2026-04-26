@@ -1,5 +1,4 @@
 import os
-import asyncio
 import threading
 import requests
 from flask import Flask
@@ -15,7 +14,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Ninja Bot is live with RapidAPI!"
+    return "Ninja Bot is live with RapidAPI (Debug Mode)!"
 
 def run_web():
     port = int(os.environ.get("PORT", 8080))
@@ -23,7 +22,7 @@ def run_web():
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
-        "🚀 **Insta Ninja Downloader (Pro Version)** 🚀\n\n"
+        "🚀 **Insta Ninja Downloader (Debug Mode)** 🚀\n\n"
         "Professional API के साथ अब रील्स डाउनलोड करना और भी आसान। ⚡\n\n"
         "👇 **Developer को सपोर्ट करने के लिए फॉलो करें:**"
     )
@@ -39,72 +38,42 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ दोस्त, कृपया सही Instagram लिंक भेजें!")
         return
 
-    status_msg = await update.message.reply_text("⚙️ **RapidAPI सर्वर से वीडियो निकाला जा रहा है...**")
-    await context.bot.send_chat_action(chat_id=chat_id, action='upload_video')
-
-    file_path = f"reel_{chat_id}.mp4"
+    status_msg = await update.message.reply_text("⚙️ **RapidAPI को रिक्वेस्ट भेजी जा रही है...**")
 
     try:
-        # 🪄 RAPIDAPI CALL (Aapke diye gaye cURL ke hisab se)
-        # Note: Maine URL ko assume kiya hai, agar error aaye to RapidAPI dashboard check karein
         api_url = "https://instagram120.p.rapidapi.com/api/instagram/links" 
-        
-        # Payload (Data) - Username ki jagah hum URL bhejenge
-        payload = {
-            "url": url
-        }
-        
-        # Headers (Aapke diye gaye host aur key ke sath)
+        payload = {"url": url}
         headers = {
             "x-rapidapi-key": RAPID_API_KEY,
             "x-rapidapi-host": "instagram120.p.rapidapi.com",
             "Content-Type": "application/json"
         }
 
-        # POST Request bhej rahe hain
         response = requests.post(api_url, json=payload, headers=headers)
-        data = response.json()
+        
+        # API kya bhej rahi hai usko nikalna
+        try:
+            data = response.json()
+        except:
+            data = response.text
 
-        # Video link nikalna (Yeh API ke response par depend karta hai)
-        # Agar JSON alag hua, to is line me error aa sakta hai
-        video_url = data[0].get("video_url") if isinstance(data, list) else data.get("video_url") or data.get("url")
-
-        if not video_url:
-            raise Exception("API ne video link nahi diya. Shayad endpoint galat hai.")
-
-        await status_msg.edit_text("📥 **वीडियो मिल गया! टेलीग्राम पर भेजा जा रहा है...**")
-
-        video_data = requests.get(video_url).content
-        with open(file_path, 'wb') as f:
-            f.write(video_data)
-
-        keyboard = [[InlineKeyboardButton("🔥 Follow Rahul on Instagram 🔥", url=INSTA_LINK)]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        with open(file_path, 'rb') as video_file:
-            await context.bot.send_video(
-                chat_id=chat_id,
-                video=video_file,
-                supports_streaming=True,
-                caption="✅ **Reel Downloaded!**\n\n⚡ *Powered by Ninja API*",
-                reply_markup=reply_markup
-            )
-        await status_msg.delete()
+        # 🛠 DEBUG MODE: Yahan hum API ka asli kachha data Telegram par dikhayenge
+        debug_text = f"🛠 **API Response (Debug):**\n`{str(data)[:3000]}`"
+        await status_msg.edit_text(debug_text, parse_mode='Markdown')
 
     except Exception as e:
-        error_text = f"❌ **Error:** API में दिक्कत है या लिंक गलत है।\n`{str(e)[:100]}`"
-        await status_msg.edit_text(error_text, parse_mode='Markdown')
-        print(f"Error: {e}")
-
-    finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        await status_msg.edit_text(f"❌ **System Error:** `{str(e)}`", parse_mode='Markdown')
 
 def main():
+    if not TELEGRAM_BOT_TOKEN or not RAPID_API_KEY:
+        print("⚠️ Error: BOT_TOKEN ya RAPIDAPI_KEY nahi mila!")
+        return
+
     threading.Thread(target=run_web, daemon=True).start()
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    print("🚀 Ninja Insta Bot (Debug Mode) is running!")
     application.run_polling()
 
 if __name__ == '__main__':
